@@ -1,11 +1,14 @@
 """ A suite of functions for file conversion to/from fidl types. """
+import csv
 
 
-def fidl_to_pymvpa(fidlname, outname):
-    """ Convert fidl files (<fidlname>) to a text file (named <outname>) 
-    easily read into Python for use as sample attributes inside PyMVPA. """
-
-    import csv
+def fidl_to_csv(fidlname, outname):
+    """ Convert fidl files (<fidlname>) to a csv file (named <outname>). 
+    
+        Column 1: TR
+        Column 2: Condition index
+        Column 3: Condition name
+    """
     
     # Open fidl and the outfile
     fidl = open(fidlname, 'r')
@@ -15,27 +18,26 @@ def fidl_to_pymvpa(fidlname, outname):
     # Get the header and parse it
     header = fidl.readline()
     header = header.strip()
-        ## Drops and tab or /n at the end
-        ## of the header; some files have these.
+        ## Drops any tab or 
+        ## \n at the end
+        ## of the header
     
+    # Header should now be a list of conditions/levels
+    # The TR is always the leftmost entry in the header
     header = header.split(' ')
-        ## Header should now be a list of conditions/levels
-        
     tr = float(header.pop(0))
-        ## The TR is always the leftmost entry in the header
       
-    # Create a lookup table of cond name to integers.
+    # Create a lookup table of 
+    # cond name to integers.
     condlookup = dict()
     for ii, cond in enumerate(header):
-        condlookup[ii + 1] = cond
-            ## Indexing from 1 not 0
+        condlookup[ii + 1] = cond   ## Indexing from 1
     
-    # Now use csv to loop over the rows
+    # Then open a csv object to read the fidl
     fidlcsv = csv.reader(fidl, delimiter='\t')
+    
     for row in fidlcsv:
-        print(row)
-        
-        # Skip empty lines (i.e. empty lists)
+        # Skip empty lines/lists
         if not row:
             continue
         
