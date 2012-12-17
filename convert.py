@@ -26,7 +26,7 @@ def fidl_to_csv(fidlname, csvname):
     # The TR is always the leftmost entry in the header
     header = header.split(' ')
     tr = float(header.pop(0))
-      
+    
     # Create a lookup table of 
     # cond name to integers.
     condlookup = dict()
@@ -55,4 +55,30 @@ def fidl_to_csv(fidlname, csvname):
     fidl.close()
     out.close()
 
+
+def combine_labels(csvfile1, csvfile2, name):
+    """ Combine csv formatted labels files into a new file called
+    <name>. 
     
+    WARNING: this function has no safeties. If the file have differing row
+    numbers, or one has a header and the other does not, the function
+    blindly proceeds with no errors.  Use with care. """
+    
+    # Open fids, then open a csv file for reading
+    fid1 = open(csvfile1, 'r')
+    fid2 = open(csvfile2, 'r')    
+    csv1 = csv.reader(fid1, delimiter=",")
+    csv2 = csv.reader(fid2, delimiter=",")
+    
+    # And for writing
+    fid3 = open(name, 'w')
+    combinedcsv = csv.writer(fid3, delimiter=",")
+    
+    # Now loop over and, combining as we go.
+    [combinedcsv.writerow(r1 + r2) for r1, r2 in zip(csv1, csv2)]
+     
+    # Cleaning up...
+    fid1.close()
+    fid2.close()    
+    fid3.close()
+
