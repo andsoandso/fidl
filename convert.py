@@ -2,8 +2,8 @@
 import csv
 
 
-def fidl_to_csv(fidlname, outname):
-    """ Convert fidl files (<fidlname>) to a csv file (named <outname>). 
+def fidl_to_csv(fidlname, csvname):
+    """ Convert fidl files (<fidlname>) to a csv file (named <csvname>). 
     
         Column 1: TR
         Column 2: Condition index
@@ -12,7 +12,7 @@ def fidl_to_csv(fidlname, outname):
     
     # Open fidl and the outfile
     fidl = open(fidlname, 'r')
-    out = open(outname, 'w')
+    out = open(csvname, 'w')
     outcsv = csv.writer(out, delimiter=",")
     
     # Get the header and parse it
@@ -32,9 +32,12 @@ def fidl_to_csv(fidlname, outname):
     condlookup = dict()
     for ii, cond in enumerate(header):
         condlookup[ii + 1] = cond   ## Indexing from 1
-    
+
     # Then open a csv object to read the fidl
     fidlcsv = csv.reader(fidl, delimiter='\t')
+    
+    # Create a header fo fidlcsv
+    outcsv.writerow(['TR', 'condindex', 'condname'])
     
     for row in fidlcsv:
         # Skip empty lines/lists
@@ -52,3 +55,4 @@ def fidl_to_csv(fidlname, outname):
     fidl.close()
     out.close()
 
+    
