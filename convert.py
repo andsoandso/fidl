@@ -28,8 +28,6 @@ def fidl_to_csv(fidlname, csvname):
     # Header should now be a list of conditions/labs
     # The TR is always the leftmost entry in the header
     header = header.split(' ')
-
-    tr = float(header.pop(0))
     
     # Create a lookup table of 
     # cond name to integers.
@@ -50,9 +48,9 @@ def fidl_to_csv(fidlname, csvname):
         
         # Time is the first col, 
         # Cond is the second
-        time = int(float(row[0]) / tr)     ## convert to tr units
+        time = int(row[0])
         condindex = int(row[1])
-    
+        
         # And write...
         outcsv.writerow([time, condindex, condlookup[condindex]])
         
@@ -168,7 +166,8 @@ def tr_time(csvfile, col, timingdict, drop=True, header=True):
     fid = open(csvfile, 'r')
     csv1 = csv.reader(fid)
     
-    fidout = open("trtime_" + csvfile, "w")
+    head, tail = os.path.split(csvfile)
+    fidout = open(os.path.join(head, "trtime_" + tail), "w")
     outcsv = csv.writer(fidout, delimiter=",")
     
     # Write the header to 
@@ -186,7 +185,6 @@ def tr_time(csvfile, col, timingdict, drop=True, header=True):
         # duration from the timingdict
         try:
             duration = timingdict[cond]
-            [outcsv.writerow(_increase_tr(row, ii)) for ii in range(duration)]
         except KeyError:
             # If we're not dropping
             # write this row once, 
@@ -195,6 +193,9 @@ def tr_time(csvfile, col, timingdict, drop=True, header=True):
                 outcsv.writerow(row)
             else:
                 continue
+        else:
+            [outcsv.writerow(_increase_tr(row, ii)) for 
+                    ii in range(duration)]
 
 
 def combine_labels(csvfile1, csvfile2, name, header=True):
