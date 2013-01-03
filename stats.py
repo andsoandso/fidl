@@ -40,6 +40,7 @@ def group_counts(csvfiles, col):
     can be treated a lot like a dictionary. """
     
     groupcnt = counts(csvfiles.pop(), col)
+    
     # Loop over csvfiles
     # adding cnts to groupcnt
     for cf in csvfiles:
