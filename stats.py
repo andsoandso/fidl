@@ -45,7 +45,10 @@ def group_counts(csvfiles, col):
     # adding cnts to groupcnt
     for cf in csvfiles:
         for k, v in counts(cf, col).iteritems():
-            groupcnt[k] += v
+            try:
+                groupcnt[k] += v
+            except KeyError:
+                print("Anomalous key ({0}), skipping.".format(k))
     
     return groupcnt
     
