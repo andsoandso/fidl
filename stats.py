@@ -12,8 +12,7 @@ def counts(csvfile, col):
     string, i.e. the <col> name, or an integer (0...N-1), where N
     is the number of cols. 
     
-    The returned counts are in a pandas.Series objects, which
-    can be treated a lot like a dictionary. """
+    The returned counts in a dict. """
     
     # Read in the csv
     data = pd.read_csv(csvfile, na_values=['NA',])
@@ -27,7 +26,7 @@ def counts(csvfile, col):
         # then as an index
         cnts = pd.Series.value_counts(data.ix[:,col])
 
-    return cnts
+    return cnts.to_dict()
     
     
 def group_counts(csvfiles, col):
@@ -48,7 +47,8 @@ def group_counts(csvfiles, col):
             try:
                 groupcnt[k] += v
             except KeyError:
-                print("Anomalous key ({0}), skipping.".format(k))
+                print("New key ({0}) at {1}.".format(k, cf))
+                groupcnt[k] = v
     
     return groupcnt
     
