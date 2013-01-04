@@ -3,7 +3,8 @@ write their results to disk, and return None. """
 import os
 import re
 import csv
-
+import pandas as pd
+from copy import deepcopy
 
 def fidl_to_csv(fidlname, csvname):
     """ Convert fidl files (<fidlname>) to a csv file (named <csvname>). 
@@ -58,7 +59,6 @@ def fidl_to_csv(fidlname, csvname):
     out.close()
 
 
-# TODO - test
 def fuzzy_label(csvfile, col, map_dict, name, header=True):
     """ Relabel (possibly by combinding) labels in <col> from <csvfile>.
     based on <conddict>.  
@@ -132,7 +132,59 @@ def _increase_tr(row, count):
     return newrow
 
 
-# TODO - test
+
+def fill_tr_gaps(trtime_csvfile, ncol, header=True):
+    """ Scan the 'TR' column of <trtime_csvfile> for gaps, 
+    and fill them in.  Populate the remaining parts of the
+    new row with NAs. """
+    
+    tmpfid = open('tmp.txt', 'w')
+    tmpcsv = csv.writer(tmpfid, delimiter=',')
+    
+    data = pd.read_csv(trtime_csvfile, na_values=['NA',])
+    trs = data['TR']
+    
+    # Deal with the header, if any
+    if header:
+        tmpcsv.writerow(data.keys().tolist())
+
+    # What to fill the new rows with
+    filler_data = ['NA', ] * (ncol - 1)
+        ## Want to be one short to fit the new TR in
+        
+    for ii in range(len(trs) - 1):
+        row = data.ix[ii,:]
+        
+        # Get TRs for this iteration
+        # and a list of TRs to fill
+        tr = trs[ii]
+        tr_plus = trs[ii+1]
+        filler_trs = []
+        
+        # Is the next TR sequential?
+        # Not if diff is greater than 1...
+        diff = tr_plus - tr
+        if diff > 1:
+            filler_trs = range(tr, tr_plus)
+        else:
+            # They're the same,
+            # so just write row.
+            tmpcsv.writerow(row)
+        
+        # If filler_trs is empty, nothing is written
+        for ftr in filler_trs:
+            tmpcsv.writerow([str(ftr), ] + filler_data)
+   
+    # To prevent overflow when looking up tr_plus
+    # max(ii) was one less than it should be. To 
+    # compensate we write the last row manually.
+    tmpcsv.writerow(data.ix[len(trs)-1,:])
+    
+    # Rename tmp.txt to <csvfile> and cleanup
+    os.rename('tmp.txt', trtime_csvfile)
+    tmpfid.close()
+
+
 def tr_time(csvfile, col, timingdict, drop=True, header=True):
     """ Uses <timingdict>, a dict with keys reflecting condition labs
     and values matching durations, to expand csvfile rows so that every TR 
