@@ -12,6 +12,7 @@ def fidl_to_csv(fidlname, csvname):
         Column 1: TR
         Column 2: Condition index
         Column 3: Condition name
+        Column 4: Trial count
     """
     
     # Open fidl and the outfile
@@ -30,6 +31,8 @@ def fidl_to_csv(fidlname, csvname):
     # The TR is always the leftmost entry in the header
     header = header.split(' ')
     
+    tr = float(header.pop(0))
+     
     # Create a lookup table of 
     # cond name to integers.
     condlookup = dict()
@@ -40,20 +43,20 @@ def fidl_to_csv(fidlname, csvname):
     fidlcsv = csv.reader(fidl, delimiter='\t')
     
     # Create a header fo fidlcsv
-    outcsv.writerow(['TR', 'condindex', 'condname'])
+    outcsv.writerow(['TR', 'condindex', 'condname', 'trialcount'])
     
-    for row in fidlcsv:
+    for ii, row in enumerate(fidlcsv):
         # Skip empty lines/lists
         if not row:
             continue
         
         # Time is the first col, 
         # Cond is the second
-        time = int(row[0])
+        time = int(float(row[0]) / tr)     ## convert to tr units
         condindex = int(row[1])
         
         # And write...
-        outcsv.writerow([time, condindex, condlookup[condindex]])
+        outcsv.writerow([time, condindex, condlookup[condindex], ii])
         
     fidl.close()
     out.close()
@@ -125,14 +128,6 @@ def fuzzy_label(csvfile, col, map_dict, name, header=True):
     fid.close()
 
 
-def _increase_tr(row, count):
-    """ Increase TR in <row> by <count>. """
-    
-    newrow = [str(int(row[0]) + count), ] + row[1:]
-    return newrow
-
-
-
 def fill_tr_gaps(trtime_csvfile, ncol, header=True):
     """ Scan the 'TR' column of <trtime_csvfile> for gaps, 
     and fill them in.  Populate the remaining parts of the
@@ -143,7 +138,7 @@ def fill_tr_gaps(trtime_csvfile, ncol, header=True):
     
     data = pd.read_csv(trtime_csvfile, na_values=['NA',])
     trs = data['TR']
-    
+
     # Deal with the header, if any
     if header:
         tmpcsv.writerow(data.keys().tolist())
@@ -151,7 +146,7 @@ def fill_tr_gaps(trtime_csvfile, ncol, header=True):
     # What to fill the new rows with
     filler_data = ['NA', ] * (ncol - 1)
         ## Want to be one short to fit the new TR in
-        
+    
     for ii in range(len(trs) - 1):
         row = data.ix[ii,:]
         
@@ -159,13 +154,14 @@ def fill_tr_gaps(trtime_csvfile, ncol, header=True):
         # and a list of TRs to fill
         tr = trs[ii]
         tr_plus = trs[ii+1]
-        filler_trs = []
         
         # Is the next TR sequential?
         # Not if diff is greater than 1...
         diff = tr_plus - tr
+        filler_trs = []
         if diff > 1:
-            filler_trs = range(tr, tr_plus)
+            tmpcsv.writerow(row)
+            filler_trs = range(tr, tr_plus)[1:]
         else:
             # They're the same,
             # so just write row.
@@ -178,11 +174,18 @@ def fill_tr_gaps(trtime_csvfile, ncol, header=True):
     # To prevent overflow when looking up tr_plus
     # max(ii) was one less than it should be. To 
     # compensate we write the last row manually.
-    tmpcsv.writerow(data.ix[len(trs)-1,:])
+    # tmpcsv.writerow(data.ix[len(trs)-1,:])
     
     # Rename tmp.txt to <csvfile> and cleanup
     os.rename('tmp.txt', trtime_csvfile)
     tmpfid.close()
+
+
+def _increase_tr(row, count):
+    """ Increase TR in <row> by <count>. """
+    
+    newrow = [str(int(row[0]) + count), ] + row[1:]
+    return newrow
 
 
 def tr_time(csvfile, col, timingdict, drop=True, header=True):
@@ -232,7 +235,7 @@ def tr_time(csvfile, col, timingdict, drop=True, header=True):
     for row in csv1:
         # Get the cond
         cond = row[col]
-        
+
         # Using cond try and get a
         # duration from the timingdict
         try:
