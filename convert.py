@@ -184,7 +184,8 @@ def fill_tr_gaps(trtime_csvfile, ncol, header=True):
 def _increase_tr(row, count):
     """ Increase TR in <row> by <count>. """
     
-    newrow = [str(int(row[0]) + count), ] + row[1:]
+    newrow = [str(int(row[0]) + count), ] + row[1:] + [count, ]
+                                                    ## ^ adds a TR index
     return newrow
 
 
@@ -229,8 +230,8 @@ def tr_time(csvfile, col, timingdict, drop=True, header=True):
     # the outfile?
     if header:
         head = csv1.next()
-        outcsv.writerow(head)
-       
+        outcsv.writerow(head + ["trindex"])
+        
     # Loop over the in file
     for row in csv1:
         # Get the cond
