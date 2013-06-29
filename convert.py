@@ -1,13 +1,52 @@
-""" A suite of functions for file conversion to/from fidl types. All functions
-write their results to disk, and return None. """
+""" A suite of functions for file conversion to/from fidl types. All functions write their results to disk, and return None. """
 import os
 import re
 import csv
+
 import pandas as pd
+import numpy as np
+from scipy.io import savemat
+
 from copy import deepcopy
 
+
+def nod_mat(names, onsets, durations, matname):
+    """Conver from a (non tr_time) csvfile to a NOD.mat (names onsets
+    durations) file of the kind needed by SPM analyses.
+    """
+    
+    # We assume arrays below
+    names = np.array(names)
+    onsets = np.array(onsets)
+    durations = np.array(durations)
+
+    unique_names = np.unique(names) 
+    unique_names = unique_names[np.logical_not(np.isnan(unique_names))]
+
+    # A litle sanity checking
+    if onsets.shape != durations.shape:
+        raise ValueError('onsets and durations must be the same shape')
+    
+    # Get to work...
+    # Sort onsets and durations into named cols
+    onsets_by_names = []
+    durations_by_name = []
+    for name in unique_names:
+        mask = name == names
+        onsets_by_names.append(onsets[mask])
+        durations_by_name.append(durations[mask])
+        
+    # Create a NOD containing dict
+    nod = {"names" : unique_names, 
+            "onsets" : onsets_by_names, 
+            "durations" : durations_by_name}
+    
+    # and save it into a mat file
+    savemat(matname, nod, oned_as="row")
+
+
 def fidl_to_csv(fidlname, csvname):
-    """ Convert fidl files (<fidlname>) to a csv file (named <csvname>). 
+    """Convert fidl files (<fidlname>) to a csv file (named <csvname>). 
     
         Column 1: TR
         Column 2: Condition index
@@ -66,8 +105,8 @@ def fuzzy_label(csvfile, col, map_dict, name, header=True):
     """ Relabel (possibly by combinding) labels in <col> from <csvfile>.
     based on <conddict>.  
     
-    Note: A REGEX IS USED WHEN COMPARING MAP_DICT TO TO ENTRIES IN COL. Hence 
-    the fuzzy in the function name.
+    Note: A REGEX IS USED WHEN COMPARING MAP_DICT TO TO ENTRIES IN COL. 
+    Hence the fuzzy in the function name.
     
     Input
     ----
@@ -130,8 +169,9 @@ def fuzzy_label(csvfile, col, map_dict, name, header=True):
 
 def fill_tr_gaps(trtime_csvfile, ncol, header=True):
     """ Scan the 'TR' column of <trtime_csvfile> for gaps, 
-    and fill them in.  Populate the remaining parts of the
-    new row with NAs. """
+    and fill them in.  Populate the missing row with a copy
+    of the last known good row, but with a updated TR column. 
+    """
     
     tmpfid = open('tmp.txt', 'w')
     tmpcsv = csv.writer(tmpfid, delimiter=',')
@@ -142,10 +182,6 @@ def fill_tr_gaps(trtime_csvfile, ncol, header=True):
     # Deal with the header, if any
     if header:
         tmpcsv.writerow(data.keys().tolist())
-
-    # What to fill the new rows with
-    filler_data = ['NA', ] * (ncol - 1)
-        ## Want to be one short to fit the new TR in
     
     for ii in range(len(trs) - 1):
         row = data.ix[ii,:]
@@ -158,19 +194,23 @@ def fill_tr_gaps(trtime_csvfile, ncol, header=True):
         # Is the next TR sequential?
         # Not if diff is greater than 1...
         diff = tr_plus - tr
-        filler_trs = []
         if diff > 1:
             tmpcsv.writerow(row)
             filler_trs = range(tr, tr_plus)[1:]
+            filler_data = row.tolist()
+            
+            # If filler_trs is empty, 
+            # nothing is written
+            trindex = filler_data[-1]
+            for ftr in filler_trs:
+                trindex += 1
+                tmpcsv.writerow([ftr, ] + filler_data[1:-1] + [trindex, ])
+
         else:
             # They're the same,
             # so just write row.
             tmpcsv.writerow(row)
         
-        # If filler_trs is empty, nothing is written
-        for ftr in filler_trs:
-            tmpcsv.writerow([str(ftr), ] + filler_data)
-   
     # To prevent overflow when looking up tr_plus
     # max(ii) was one less than it should be. To 
     # compensate we write the last row manually.
