@@ -21,7 +21,8 @@ def nod_mat(names, onsets, durations, matname):
     durations = np.array(durations)
 
     unique_names = np.unique(names) 
-    unique_names = unique_names[np.logical_not(np.isnan(unique_names))]
+    unique_names = unique_names[np.logical_not(pd.isnull(unique_names))]
+        ## Drop and nans, Nones, etc
 
     # A litle sanity checking
     if onsets.shape != durations.shape:
@@ -108,8 +109,8 @@ def fuzzy_label(csvfile, col, map_dict, name, header=True):
     Note: A REGEX IS USED WHEN COMPARING MAP_DICT TO TO ENTRIES IN COL. 
     Hence the fuzzy in the function name.
     
-    Input
-    ----
+    Parameters
+    ---------
     csvfile - name of the csv files to process, should match form produced
             by fidl_to_csv() in this module.
     col - the column number, indexed from 0
