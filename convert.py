@@ -16,13 +16,20 @@ def nod_mat(names, onsets, durations, matname):
     """
     
     # We assume arrays below
-    names = np.array(names)
+    names = [str(name) for name in names] ## Want to ensure str....
+    names = np.array(names).astype(np.object) 
+            ## np.object forcesi the array to be written as 
+            ## cell array in the .mat
+
     onsets = np.array(onsets)
     durations = np.array(durations)
 
+    # For < 2011b compatbility which can't deal with int64
+    onsets = onsets.astype("float64")
+    durations = durations.astype("float64")
+
     unique_names = np.unique(names) 
-    unique_names = unique_names[np.logical_not(pd.isnull(unique_names))]
-        ## Drop and nans, Nones, etc
+    unique_names = unique_names[unique_names != 'nan']
 
     # A litle sanity checking
     if onsets.shape != durations.shape:
@@ -46,7 +53,7 @@ def nod_mat(names, onsets, durations, matname):
     savemat(matname, nod, oned_as="row")
 
 
-def fidl_to_csv(fidlname, csvname):
+def fidl_to_csv(fidlname, csvname, indexfrom=1):
     """Convert fidl files (<fidlname>) to a csv file (named <csvname>). 
     
         Column 1: TR
@@ -56,7 +63,7 @@ def fidl_to_csv(fidlname, csvname):
     """
     
     # Open fidl and the outfile
-    fidl = open(fidlname, 'r')
+    fidl = open(fidlname, 'rU')  ## U is universal newline support
     out = open(csvname, 'w')
     outcsv = csv.writer(out, delimiter=",")
     
@@ -66,18 +73,17 @@ def fidl_to_csv(fidlname, csvname):
         ## Drops any tab or 
         ## \n at the end
         ## of the header
-    
+
     # Header should now be a list of conditions/labs
     # The TR is always the leftmost entry in the header
-    header = header.split(' ')
-    
+    header = header.split()
     tr = float(header.pop(0))
-     
+
     # Create a lookup table of 
     # cond name to integers.
     condlookup = dict()
     for ii, cond in enumerate(header):
-        condlookup[ii + 1] = cond   ## Indexing from 1
+        condlookup[ii + indexfrom] = cond   ## Indexing from 1
 
     # Then open a csv object to read the fidl
     fidlcsv = csv.reader(fidl, delimiter='\t')
@@ -131,6 +137,12 @@ def fuzzy_label(csvfile, col, map_dict, name, header=True):
     tmpfid = open('tmp.txt', 'w')
     tmpcsv = csv.writer(tmpfid, delimiter=',')
     
+    # Check to make sure the new labs are at least 3 chars
+    for val in map_dict.values():
+        if len(val) < 3:
+            raise ValueError(
+                    "New labels must be at least 3 letters long")
+
     # If header add a entry for exp
     if header:
         head = csv_f.next()
@@ -158,7 +170,8 @@ def fuzzy_label(csvfile, col, map_dict, name, header=True):
             tmpcsv.writerow(row + [newlab[0], ])
         else:
             raise ValueError(
-                    "Multiple matches detected at {0}.".format(ii))
+                    "Multiple matches detected at {0} - {1}.".format(
+                            ii, newlab))
 
     # Rename tmp.txt to <csvfile>
     os.rename('tmp.txt', csvfile)
@@ -168,7 +181,7 @@ def fuzzy_label(csvfile, col, map_dict, name, header=True):
     fid.close()
 
 
-def fill_tr_gaps(trtime_csvfile, ncol, header=True):
+def fill_tr_gaps(trtime_csvfile, ncol, header=True, fill='copy'):
     """ Scan the 'TR' column of <trtime_csvfile> for gaps, 
     and fill them in.  Populate the missing row with a copy
     of the last known good row, but with a updated TR column. 
@@ -198,14 +211,26 @@ def fill_tr_gaps(trtime_csvfile, ncol, header=True):
         if diff > 1:
             tmpcsv.writerow(row)
             filler_trs = range(tr, tr_plus)[1:]
-            filler_data = row.tolist()
-            
-            # If filler_trs is empty, 
+            rowl = row.tolist()
+
+            if fill == 'copy':
+                filler_data = deepcopy(rowl)
+            elif fill == 'nan':
+                filler_data = list(np.repeat(str(np.nan), len(rowl)))
+            else:
+                raise ValueError("fill ({0}) not understood".format(fill))
+
+            # If filler_trs is empty,
             # nothing is written
             trindex = filler_data[-1]
             for ftr in filler_trs:
-                trindex += 1
-                tmpcsv.writerow([ftr, ] + filler_data[1:-1] + [trindex, ])
+                if fill == 'copy':
+                    trindex += 1
+                    tmpcsv.writerow([ftr, ] + filler_data[1:-1] + [trindex, ])
+                elif fill == 'nan':
+                    tmpcsv.writerow([ftr, ] + filler_data[1:])
+                else:
+                    raise ValueError("fill ({0}) not understood".format(fill))
 
         else:
             # They're the same,
